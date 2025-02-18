@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
 const LOCATIONS = [
-  'Irvine/John Wayne Airport',
+  'Irvine/Costa Mesa/John Wayne Airport',
   'Tustin',
   'Downtown Santa Ana',
   'Irvine Spectrum',
@@ -23,16 +23,27 @@ const surveySchema = z.object({
     required_error: "Please select your work location"
   }),
   meetingPreference: z.array(z.enum(['lunch', 'dinner'])).min(1, "Please select at least one meal preference"),
-  useDifferentLocations: z.boolean().optional(),
-  locations: locationSchema.refine((data) => !useDifferentLocations && data.length > 0, {
-    message: "Please select at least one location"
-  }),
-  lunchLocations: z.array(z.string()).refine((data) => !useDifferentLocations || data.length > 0, {
-    message: "Please select at least one lunch location"
-  }).optional(),
-  dinnerLocations: z.array(z.string()).refine((data) => !useDifferentLocations || data.length > 0, {
-    message: "Please select at least one dinner location"
-  }).optional()
+  useDifferentLocations: z.boolean().optional().default(false),
+  locations: z.array(z.string()).min(1, "Please select at least one location"),
+  lunchLocations: z.array(z.string()).optional(),
+  dinnerLocations: z.array(z.string()).optional()
+}).refine((data) => {
+  if (!data.useDifferentLocations) {
+    return data.locations.length > 0;
+  }
+  if (data.meetingPreference.includes('lunch')) {
+    if (!data.lunchLocations || data.lunchLocations.length === 0) {
+      return false;
+    }
+  }
+  if (data.meetingPreference.includes('dinner')) {
+    if (!data.dinnerLocations || data.dinnerLocations.length === 0) {
+      return false;
+    }
+  }
+  return true;
+}, {
+  message: "Please select at least one location for each meal preference"
 });
 
 type SurveyFormData = z.infer<typeof surveySchema>;
