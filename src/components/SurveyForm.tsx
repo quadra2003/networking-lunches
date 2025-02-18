@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -76,10 +76,10 @@ const steps = [
 ];
 
 export default function SurveyForm() {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [stepError, setStepError] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = React.useState(0);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [submitSuccess, setSubmitSuccess] = React.useState(false);
+  const [stepError, setStepError] = React.useState<string | null>(null);
 
   const { 
     register, 
@@ -102,7 +102,7 @@ export default function SurveyForm() {
   const selectedAvailability = watch('availability');
   const useSeparateLocations = watch('useSeparateLocations');
 
-  const onSubmit = async (data: SurveyFormData) => {
+  const onSubmit = React.useCallback(async (data: SurveyFormData) => {
     console.log('Submit attempt:', data);
     setIsSubmitting(true);
     try {
@@ -123,27 +123,29 @@ export default function SurveyForm() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, []);
 
-  if (submitSuccess) {
-    return (
-      <div className="max-w-md mx-auto p-8 text-center">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-green-600 mb-4">
-            Thank you for submitting your preferences!
-          </h2>
-          <p className="text-gray-600 mb-6">
-            We&apos;ll use your preferences to match you with networking opportunities that work best for you.
-          </p>
-          <p className="text-gray-600">
-            You&apos;ll receive an email when your group has been formed.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const handleNextStep = React.useCallback(() => {
+    const currentStepValid = currentStep === 0 
+      ? Boolean(watch('name') && watch('email'))
+      : currentStep === 1 
+      ? selectedAvailability.length > 0
+      : true;
+    
+    if (currentStepValid) {
+      setStepError(null);
+      setCurrentStep(current => current + 1);
+    } else {
+      const errorMessage = currentStep === 0 
+        ? "Please fill in both name and email"
+        : currentStep === 1 
+        ? "Please select at least one availability option"
+        : "";
+      setStepError(errorMessage);
+    }
+  }, [currentStep, watch, selectedAvailability]);
 
-  const renderStepContent = (step: number) => {
+  const renderStepContent = React.useCallback((step: number) => {
     switch (step) {
       case 0:
         return (
@@ -281,7 +283,25 @@ export default function SurveyForm() {
           </div>
         );
     }
-  };
+  }, [register, errors, selectedAvailability, useSeparateLocations]);
+
+  if (submitSuccess) {
+    return (
+      <div className="max-w-md mx-auto p-8 text-center">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-green-600 mb-4">
+            Thank you for submitting your preferences!
+          </h2>
+          <p className="text-gray-600 mb-6">
+            We&apos;ll use your preferences to match you with networking opportunities that work best for you.
+          </p>
+          <p className="text-gray-600">
+            You&apos;ll receive an email when your group has been formed.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto p-6">
@@ -349,34 +369,15 @@ export default function SurveyForm() {
         ) : (
           <button
             type="button"
-            onClick={() => {
-              const currentStepValid = currentStep === 0 
-                ? Boolean(watch('name') && watch('email'))
-                : currentStep === 1 
-                ? selectedAvailability.length > 0
-                : true;
-              
-              if (currentStepValid) {
-                setStepError(null);
-                setCurrentStep(current => current + 1);
-              } else {
-                const errorMessage = currentStep === 0 
-                  ? "Please fill in both name and email"
-                  : currentStep === 1 
-                  ? "Please select at least one availability option"
-                  : "";
-                setStepError(errorMessage);
-              }
-            }}
+            onClick={handleNextStep}
             disabled={isSubmitting}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed"
           >
             Next
           </button>
-
         )}
       </div>
-            {stepError && (
+      {stepError && (
         <div className="mt-4 text-center text-red-500">
           {stepError}
         </div>
