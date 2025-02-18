@@ -1,117 +1,142 @@
 // src/components/SurveyForm.tsx
-import React, { useState } from 'react';
+'use client';
 
-const SurveyForm = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    department: '',
-    workLocation: '',
-    availableDays: []
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+// Survey Form Schema
+const surveySchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  department: z.string().optional(),
+  availableDays: z.array(z.string()).min(1, "Select at least one day"),
+  workLocation: z.enum(['In-Office', 'Remote', 'Hybrid']),
+  professionalInterests: z.array(z.string()).optional()
+});
+
+type SurveyFormData = z.infer<typeof surveySchema>;
+
+export default function SurveyForm() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  const { 
+    register, 
+    handleSubmit, 
+    formState: { errors } 
+  } = useForm<SurveyFormData>({
+    resolver: zodResolver(surveySchema)
   });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Form submitted:', formData);
+  const onSubmit = async (data: SurveyFormData) => {
+    setIsSubmitting(true);
+    try {
+      // TODO: Implement actual submission logic
+      console.log(data);
+      setSubmitSuccess(true);
+    } catch (error) {
+      console.error('Survey submission error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleDayChange = (day) => {
-    setFormData(prev => ({
-      ...prev,
-      availableDays: prev.availableDays.includes(day)
-        ? prev.availableDays.filter(d => d !== day)
-        : [...prev.availableDays, day]
-    }));
-  };
+  if (submitSuccess) {
+    return (
+      <div className="text-center p-8">
+        <h2 className="text-2xl font-bold text-green-600">
+          Thank you for submitting your survey!
+        </h2>
+        <p className="mt-4">We&apos;ll be in touch about your networking lunch group.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full max-w-md mx-auto p-6">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Name</label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-            required
-          />
-        </div>
+    <form onSubmit={handleSubmit(onSubmit)} className="max-w-md mx-auto space-y-4 p-6">
+      {/* Name Input */}
+      <div>
+        <label className="block mb-2">Name</label>
+        <input 
+          {...register('name')}
+          className="w-full px-3 py-2 border rounded"
+          placeholder="Your full name"
+        />
+        {errors.name && (
+          <p className="text-red-500 text-sm mt-1">
+            {errors.name.message}
+          </p>
+        )}
+      </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Email</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-            required
-          />
-        </div>
+      {/* Email Input */}
+      <div>
+        <label className="block mb-2">Email</label>
+        <input 
+          {...register('email')}
+          type="email"
+          className="w-full px-3 py-2 border rounded"
+          placeholder="your.email@company.com"
+        />
+        {errors.email && (
+          <p className="text-red-500 text-sm mt-1">
+            {errors.email.message}
+          </p>
+        )}
+      </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Department</label>
-          <input
-            type="text"
-            name="department"
-            value={formData.department}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Work Location</label>
-          <select
-            name="workLocation"
-            value={formData.workLocation}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-            required
-          >
-            <option value="">Select location</option>
-            <option value="in-office">In Office</option>
-            <option value="remote">Remote</option>
-            <option value="hybrid">Hybrid</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Available Days</label>
-          <div className="space-y-2">
-            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => (
-              <label key={day} className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.availableDays.includes(day)}
-                  onChange={() => handleDayChange(day)}
-                  className="mr-2"
-                />
-                {day}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition-colors"
+      {/* Work Location */}
+      <div>
+        <label className="block mb-2">Work Location</label>
+        <select 
+          {...register('workLocation')}
+          className="w-full px-3 py-2 border rounded"
         >
-          Submit
-        </button>
-      </form>
-    </div>
-  );
-};
+          <option value="">Select Work Location</option>
+          <option value="In-Office">In-Office</option>
+          <option value="Remote">Remote</option>
+          <option value="Hybrid">Hybrid</option>
+        </select>
+        {errors.workLocation && (
+          <p className="text-red-500 text-sm mt-1">
+            {errors.workLocation.message}
+          </p>
+        )}
+      </div>
 
-export default SurveyForm;
+      {/* Available Days */}
+      <div>
+        <label className="block mb-2">Available Days</label>
+        <div className="space-y-2">
+          {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => (
+            <label key={day} className="inline-flex items-center">
+              <input
+                type="checkbox"
+                value={day}
+                {...register('availableDays')}
+                className="mr-2"
+              />
+              {day}
+            </label>
+          ))}
+        </div>
+        {errors.availableDays && (
+          <p className="text-red-500 text-sm mt-1">
+            {errors.availableDays.message}
+          </p>
+        )}
+      </div>
+
+      {/* Submit Button */}
+      <button 
+        type="submit" 
+        disabled={isSubmitting}
+        className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition"
+      >
+        {isSubmitting ? 'Submitting...' : 'Submit Survey'}
+      </button>
+    </form>
+  );
+}
