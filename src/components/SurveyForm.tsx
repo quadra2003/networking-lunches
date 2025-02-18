@@ -1,4 +1,5 @@
 // src/components/SurveyForm.tsx
+
 'use client';
 
 import React, { useState } from 'react';
@@ -109,16 +110,16 @@ export default function SurveyForm() {
       {/* Available Days */}
       <div>
         <label className="block mb-2">Available Days</label>
-        <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-4">
           {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => (
-            <label key={day} className="inline-flex items-center">
+            <label key={day} className="flex items-center space-x-3 p-2 rounded hover:bg-gray-50">
               <input
                 type="checkbox"
                 value={day}
                 {...register('availableDays')}
-                className="mr-2"
+                className="h-4 w-4 text-blue-500 border-gray-300 rounded focus:ring-blue-500"
               />
-              {day}
+              <span className="text-gray-700">{day}</span>
             </label>
           ))}
         </div>
