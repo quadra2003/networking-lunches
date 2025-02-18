@@ -13,43 +13,49 @@ const LOCATIONS = [
   'Buena Park/Fullerton/Brea'
 ];
 
+const AVAILABILITY_OPTIONS = [
+  'Weekday Lunch',
+  'Weekday Dinner',
+  'Weekend Lunch',
+  'Weekend Dinner'
+] as const;
+
 const surveySchema = z.object({
   name: z.string().min(2, "Name is required and must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
   department: z.string().optional(),
-  meetingPreference: z.array(z.enum(['lunch', 'dinner'])).min(1, "Please select at least one meal preference"),
-  timePreference: z.array(z.enum(['weekdays', 'weekends'])).min(1, "Please select at least one time preference"),
-  useDifferentMealLocations: z.boolean().default(false),
-  useDifferentTimeLocations: z.boolean().default(false),
+  availability: z.array(z.enum(AVAILABILITY_OPTIONS)).min(1, "Please select at least one availability option"),
+  useSeparateLocations: z.boolean().default(false),
+  // For single location preference
   locations: z.array(z.string()),
-  lunchLocations: z.array(z.string()).default([]),
-  dinnerLocations: z.array(z.string()).default([]),
-  weekdayLocations: z.array(z.string()).default([]),
-  weekendLocations: z.array(z.string()).default([])
+  // For separate location preferences
+  weekdayLunchLocations: z.array(z.string()).default([]),
+  weekdayDinnerLocations: z.array(z.string()).default([]),
+  weekendLunchLocations: z.array(z.string()).default([]),
+  weekendDinnerLocations: z.array(z.string()).default([])
 }).refine((data) => {
-  if (!data.useDifferentMealLocations && !data.useDifferentTimeLocations) {
+  if (!data.useSeparateLocations) {
     return data.locations.length > 0;
   }
 
-  if (data.useDifferentTimeLocations) {
-    // Check weekday locations if weekdays are selected
-    if (data.timePreference.includes('weekdays')) {
-      if (data.weekdayLocations.length === 0) {
+  const hasValidLocations = data.availability.every(option => {
+    switch (option) {
+      case 'Weekday Lunch':
+        return data.weekdayLunchLocations.length > 0;
+      case 'Weekday Dinner':
+        return data.weekdayDinnerLocations.length > 0;
+      case 'Weekend Lunch':
+        return data.weekendLunchLocations.length > 0;
+      case 'Weekend Dinner':
+        return data.weekendDinnerLocations.length > 0;
+      default:
         return false;
-      }
     }
-    
-    // Check weekend locations if weekends are selected
-    if (data.timePreference.includes('weekends')) {
-      if (data.weekendLocations.length === 0) {
-        return false;
-      }
-    }
-  }
+  });
 
-  return true;
+  return hasValidLocations;
 }, {
-  message: "Please select at least one location for each selected preference"
+  message: "Please select at least one location for each availability option"
 });
 
 type SurveyFormData = z.infer<typeof surveySchema>;
@@ -60,8 +66,8 @@ const steps = [
     description: "Your contact details"
   },
   {
-    title: "Meeting Preferences",
-    description: "When you'd like to meet"
+    title: "Meeting Availability",
+    description: "When you can meet"
   },
   {
     title: "Location Preferences",
@@ -81,60 +87,44 @@ export default function SurveyForm() {
     formState: { errors } 
   } = useForm<SurveyFormData>({
     resolver: zodResolver(surveySchema),
-    mode: "onChange",
     defaultValues: {
-      meetingPreference: [],
-      timePreference: [],
+      availability: [],
       locations: [],
-      lunchLocations: [],
-      dinnerLocations: [],
-      weekdayLocations: [],
-      weekendLocations: [],
-      useDifferentMealLocations: false,
-      useDifferentTimeLocations: false
+      useSeparateLocations: false,
+      weekdayLunchLocations: [],
+      weekdayDinnerLocations: [],
+      weekendLunchLocations: [],
+      weekendDinnerLocations: []
     }
   });
 
-  const meetingPreference = watch('meetingPreference');
-  const timePreference = watch('timePreference');
-  const useDifferentMealLocations = watch('useDifferentMealLocations');
-  const useDifferentTimeLocations = watch('useDifferentTimeLocations');
-
-  const bothMealsSelected = meetingPreference?.includes('lunch') && meetingPreference?.includes('dinner');
-  const bothTimesSelected = timePreference?.includes('weekdays') && timePreference?.includes('weekends');
+  const selectedAvailability = watch('availability');
+  const useSeparateLocations = watch('useSeparateLocations');
 
   const onSubmit = async (data: SurveyFormData) => {
-    console.log('Submit attempt:', {
-      timePreference: data.timePreference,
-      useDifferentTimeLocations: data.useDifferentTimeLocations,
-      weekdayLocations: data.weekdayLocations,
-      weekendLocations: data.weekendLocations
-    });
+    console.log('Submit attempt:', data);
     setIsSubmitting(true);
     try {
-        const { db } = await import('@/lib/firebase');
-        const { collection, addDoc } = await import('firebase/firestore');
-        
-        // Prevent default form behavior
-        // e.preventDefault();
-        
-        const surveyRef = collection(db, 'survey-responses');
-        await addDoc(surveyRef, {
-          ...data,
-          submittedAt: new Date()
-        });
-        
-        setSubmitSuccess(true);
-      } catch (error) {
-        console.error('Survey submission error:', error);
-        alert('There was an error submitting your survey. Please try again.');
-      } finally {
-        setIsSubmitting(false);
-      }
-    };
+      const { db } = await import('@/lib/firebase');
+      const { collection, addDoc } = await import('firebase/firestore');
+      
+      const surveyRef = collection(db, 'survey-responses');
+      const docRef = await addDoc(surveyRef, {
+        ...data,
+        submittedAt: new Date()
+      });
+      
+      console.log('Document written with ID:', docRef.id);
+      setSubmitSuccess(true);
+    } catch (error) {
+      console.error('Survey submission error:', error);
+      alert('There was an error submitting your survey. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-
-if (submitSuccess) {
+  if (submitSuccess) {
     return (
       <div className="max-w-md mx-auto p-8 text-center">
         <div className="bg-white rounded-lg shadow-lg p-6">
@@ -193,59 +183,23 @@ if (submitSuccess) {
           <div className="space-y-6">
             <div>
               <label className="block mb-2 font-medium">
-                Meeting Preference <span className="text-red-500">*</span>
+                Meeting Availability <span className="text-red-500">*</span>
               </label>
-              <div className="space-x-4">
-                <label className="inline-flex items-center">
-                  <input
-                    type="checkbox"
-                    value="lunch"
-                    {...register('meetingPreference')}
-                    className="mr-2"
-                  />
-                  <span>Lunch</span>
-                </label>
-                <label className="inline-flex items-center">
-                  <input
-                    type="checkbox"
-                    value="dinner"
-                    {...register('meetingPreference')}
-                    className="mr-2"
-                  />
-                  <span>Dinner</span>
-                </label>
+              <div className="grid grid-cols-1 gap-2">
+                {AVAILABILITY_OPTIONS.map((option) => (
+                  <label key={option} className="flex items-center p-2 rounded hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      value={option}
+                      {...register('availability')}
+                      className="mr-3"
+                    />
+                    <span>{option}</span>
+                  </label>
+                ))}
               </div>
-              {errors.meetingPreference && (
-                <p className="text-red-500 text-sm mt-1">{errors.meetingPreference.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block mb-2 font-medium">
-                Time Preference <span className="text-red-500">*</span>
-              </label>
-              <div className="space-x-4">
-                <label className="inline-flex items-center">
-                  <input
-                    type="checkbox"
-                    value="weekdays"
-                    {...register('timePreference')}
-                    className="mr-2"
-                  />
-                  <span>Weekdays</span>
-                </label>
-                <label className="inline-flex items-center">
-                  <input
-                    type="checkbox"
-                    value="weekends"
-                    {...register('timePreference')}
-                    className="mr-2"
-                  />
-                  <span>Weekends</span>
-                </label>
-              </div>
-              {errors.timePreference && (
-                <p className="text-red-500 text-sm mt-1">{errors.timePreference.message}</p>
+              {errors.availability && (
+                <p className="text-red-500 text-sm mt-1">{errors.availability.message}</p>
               )}
             </div>
           </div>
@@ -254,36 +208,20 @@ if (submitSuccess) {
       case 2:
         return (
           <div className="space-y-6">
-            {(bothMealsSelected || bothTimesSelected) && (
-              <div className="space-y-2 bg-gray-50 p-4 rounded">
-                {bothMealsSelected && (
-                  <div>
-                    <label className="inline-flex items-center">
-                      <input
-                        type="checkbox"
-                        {...register('useDifferentMealLocations')}
-                        className="mr-2"
-                      />
-                      <span>Use different locations for lunch and dinner</span>
-                    </label>
-                  </div>
-                )}
-                {bothTimesSelected && (
-                  <div>
-                    <label className="inline-flex items-center">
-                      <input
-                        type="checkbox"
-                        {...register('useDifferentTimeLocations')}
-                        className="mr-2"
-                      />
-                      <span>Use different locations for weekdays and weekends</span>
-                    </label>
-                  </div>
-                )}
+            {selectedAvailability.length > 1 && (
+              <div>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    {...register('useSeparateLocations')}
+                    className="mr-2"
+                  />
+                  <span>Specify locations for each meeting type</span>
+                </label>
               </div>
             )}
 
-            {!useDifferentMealLocations && !useDifferentTimeLocations && (
+            {!useSeparateLocations && (
               <div>
                 <label className="block mb-2 font-medium">
                   Preferred Locations <span className="text-red-500">*</span>
@@ -307,18 +245,28 @@ if (submitSuccess) {
               </div>
             )}
 
-            {useDifferentMealLocations && (
-              <>
-                {meetingPreference?.includes('lunch') && (
-                  <div>
-                    <label className="block mb-2 font-medium">Lunch Locations</label>
+            {useSeparateLocations && (
+              <div className="space-y-8">
+                {selectedAvailability.map((option) => (
+                  <div key={option}>
+                    <label className="block mb-2 font-medium">
+                      {option} Locations <span className="text-red-500">*</span>
+                    </label>
                     <div className="grid grid-cols-1 gap-2">
                       {LOCATIONS.map((location) => (
                         <label key={location} className="flex items-center p-2 rounded hover:bg-gray-50">
                           <input
                             type="checkbox"
                             value={location}
-                            {...register('lunchLocations')}
+                            {...register(
+                              option === 'Weekday Lunch' 
+                                ? 'weekdayLunchLocations' 
+                                : option === 'Weekday Dinner'
+                                ? 'weekdayDinnerLocations'
+                                : option === 'Weekend Lunch'
+                                ? 'weekendLunchLocations'
+                                : 'weekendDinnerLocations'
+                            )}
                             className="mr-3"
                           />
                           <span>{location}</span>
@@ -326,69 +274,8 @@ if (submitSuccess) {
                       ))}
                     </div>
                   </div>
-                )}
-
-                {meetingPreference?.includes('dinner') && (
-                  <div>
-                    <label className="block mb-2 font-medium">Dinner Locations</label>
-                    <div className="grid grid-cols-1 gap-2">
-                      {LOCATIONS.map((location) => (
-                        <label key={location} className="flex items-center p-2 rounded hover:bg-gray-50">
-                          <input
-                            type="checkbox"
-                            value={location}
-                            {...register('dinnerLocations')}
-                            className="mr-3"
-                          />
-                          <span>{location}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {useDifferentTimeLocations && (
-              <>
-                {timePreference?.includes('weekdays') && (
-                  <div>
-                    <label className="block mb-2 font-medium">Weekday Locations</label>
-                    <div className="grid grid-cols-1 gap-2">
-                      {LOCATIONS.map((location) => (
-                        <label key={location} className="flex items-center p-2 rounded hover:bg-gray-50">
-                          <input
-                            type="checkbox"
-                            value={location}
-                            {...register('weekdayLocations')}
-                            className="mr-3"
-                          />
-                          <span>{location}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {timePreference?.includes('weekends') && (
-                  <div>
-                    <label className="block mb-2 font-medium">Weekend Locations</label>
-                    <div className="grid grid-cols-1 gap-2">
-                      {LOCATIONS.map((location) => (
-                        <label key={location} className="flex items-center p-2 rounded hover:bg-gray-50">
-                          <input
-                            type="checkbox"
-                            value={location}
-                            {...register('weekendLocations')}
-                            className="mr-3"
-                          />
-                          <span>{location}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
+                ))}
+              </div>
             )}
           </div>
         );
@@ -396,11 +283,7 @@ if (submitSuccess) {
   };
 
   return (
-    <form onSubmit={handleSubmit((data) => {
-      console.log('Form submitted', data);
-      onSubmit(data);
-    })}>
-      <div className="max-w-2xl mx-auto p-6">
+    <div className="max-w-2xl mx-auto p-6">
       {/* Progress Steps */}
       <div className="mb-8">
         <div className="flex justify-between mb-4">
@@ -456,22 +339,20 @@ if (submitSuccess) {
 
         {currentStep === steps.length - 1 ? (
           <button
-            type="submit"
+            onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Submitting...' : 'Submit'}
           </button>
         ) : (
-          
-      
           <button
             type="button"
             onClick={() => {
               const currentStepValid = currentStep === 0 
                 ? Boolean(watch('name') && watch('email'))
                 : currentStep === 1 
-                ? Boolean(watch('meetingPreference')?.length && watch('timePreference')?.length)
+                ? selectedAvailability.length > 0
                 : true;
               
               if (currentStepValid) {
@@ -483,10 +364,8 @@ if (submitSuccess) {
           >
             Next
           </button>
-        )}    
-        
+        )}
       </div>
     </div>
-      </form>
   );
 }
