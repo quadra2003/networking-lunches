@@ -13,8 +13,6 @@ const LOCATIONS = [
   'Buena Park/Fullerton/Brea'
 ];
 
-const locationSchema = z.array(z.string()).min(1, "Select at least one location");
-
 const surveySchema = z.object({
   name: z.string().min(2, "Name is required and must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
