@@ -34,11 +34,41 @@ export default function SurveyForm() {
   const onSubmit = async (data: SurveyFormData) => {
     setIsSubmitting(true);
     try {
-      // TODO: Implement actual submission logic
-      console.log(data);
+      console.log('Submitting form data:', data);
+      
+      const { db } = await import('@/lib/firebase');
+      const { collection, addDoc, getDocs, query, where } = await import('firebase/firestore');
+      
+      // Create a reference to the survey-responses collection
+      const surveyRef = collection(db, 'survey-responses');
+      
+      // Add the document to Firestore
+      const docRef = await addDoc(surveyRef, {
+        ...data,
+        submittedAt: new Date()
+      });
+      
+      console.log('Document written with ID:', docRef.id);
+      
+      // Verify the submission by fetching it back
+      const verifyQuery = query(surveyRef, where('email', '==', data.email));
+      const querySnapshot = await getDocs(verifyQuery);
+      
+      if (!querySnapshot.empty) {
+        console.log('Submission verified in Firestore:', 
+          querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }))
+        );
+      } else {
+        console.warn('Submission not found in verification check');
+      }
+      
       setSubmitSuccess(true);
     } catch (error) {
       console.error('Survey submission error:', error);
+      alert('There was an error submitting your survey. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
