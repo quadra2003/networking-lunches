@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -18,35 +18,45 @@ const surveySchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   department: z.string().optional(),
   meetingPreference: z.array(z.enum(['lunch', 'dinner'])).min(1, "Please select at least one meal preference"),
-  useDifferentLocations: z.boolean().optional().default(false),
+  timePreference: z.array(z.enum(['weekdays', 'weekends'])).min(1, "Please select at least one time preference"),
+  useDifferentMealLocations: z.boolean().optional().default(false),
+  useDifferentTimeLocations: z.boolean().optional().default(false),
+  // For single location preferences
   locations: z.array(z.string()).min(1, "Please select at least one location"),
+  // For meal-specific locations
   lunchLocations: z.array(z.string()).optional(),
-  dinnerLocations: z.array(z.string()).optional()
+  dinnerLocations: z.array(z.string()).optional(),
+  // For time-specific locations
+  weekdayLocations: z.array(z.string()).optional(),
+  weekendLocations: z.array(z.string()).optional()
 }).refine((data) => {
-  if (!data.useDifferentLocations) {
+  if (!data.useDifferentMealLocations && !data.useDifferentTimeLocations) {
     return data.locations.length > 0;
   }
-  if (data.meetingPreference.includes('lunch')) {
-    if (!data.lunchLocations || data.lunchLocations.length === 0) {
+  if (data.useDifferentMealLocations) {
+    if (data.meetingPreference.includes('lunch') && (!data.lunchLocations || data.lunchLocations.length === 0)) {
+      return false;
+    }
+    if (data.meetingPreference.includes('dinner') && (!data.dinnerLocations || data.dinnerLocations.length === 0)) {
       return false;
     }
   }
-  if (data.meetingPreference.includes('dinner')) {
-    if (!data.dinnerLocations || data.dinnerLocations.length === 0) {
+  if (data.useDifferentTimeLocations) {
+    if (data.timePreference.includes('weekdays') && (!data.weekdayLocations || data.weekdayLocations.length === 0)) {
+      return false;
+    }
+    if (data.timePreference.includes('weekends') && (!data.weekendLocations || data.weekendLocations.length === 0)) {
       return false;
     }
   }
   return true;
 }, {
-  message: "Please select at least one location for each meal preference"
+  message: "Please select at least one location for each selected preference"
 });
 
 type SurveyFormData = z.infer<typeof surveySchema>;
 
 export default function SurveyForm() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-
   const { 
     register, 
     handleSubmit, 
@@ -55,25 +65,32 @@ export default function SurveyForm() {
   } = useForm<SurveyFormData>({
     resolver: zodResolver(surveySchema),
     defaultValues: {
-      useDifferentLocations: false,
       meetingPreference: [],
+      timePreference: [],
       locations: [],
       lunchLocations: [],
-      dinnerLocations: []
+      dinnerLocations: [],
+      weekdayLocations: [],
+      weekendLocations: [],
+      useDifferentMealLocations: false,
+      useDifferentTimeLocations: false
     }
   });
 
   const meetingPreference = watch('meetingPreference');
-  const useDifferentLocations = watch('useDifferentLocations');
+  const timePreference = watch('timePreference');
+  const useDifferentMealLocations = watch('useDifferentMealLocations');
+  const useDifferentTimeLocations = watch('useDifferentTimeLocations');
+
   const bothMealsSelected = meetingPreference?.includes('lunch') && meetingPreference?.includes('dinner');
+  const bothTimesSelected = timePreference?.includes('weekdays') && timePreference?.includes('weekends');
 
   const onSubmit = async (data: SurveyFormData) => {
-    setIsSubmitting(true);
     try {
       console.log('Submitting form data:', data);
       
       const { db } = await import('@/lib/firebase');
-      const { collection, addDoc, getDocs, query, where } = await import('firebase/firestore');
+      const { collection, addDoc } = await import('firebase/firestore');
       
       const surveyRef = collection(db, 'survey-responses');
       const docRef = await addDoc(surveyRef, {
@@ -82,38 +99,13 @@ export default function SurveyForm() {
       });
       
       console.log('Document written with ID:', docRef.id);
+      alert('Thank you for submitting your preferences!');
       
-      const verifyQuery = query(surveyRef, where('email', '==', data.email));
-      const querySnapshot = await getDocs(verifyQuery);
-      
-      if (!querySnapshot.empty) {
-        console.log('Submission verified in Firestore:', 
-          querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }))
-        );
-      }
-      
-      setSubmitSuccess(true);
     } catch (error) {
       console.error('Survey submission error:', error);
       alert('There was an error submitting your survey. Please try again.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
-
-  if (submitSuccess) {
-    return (
-      <div className="text-center p-8">
-        <h2 className="text-2xl font-bold text-green-600">
-          Thank you for submitting your survey!
-        </h2>
-        <p className="mt-4">We&apos;ll be in touch about your networking group.</p>
-      </div>
-    );
-  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="max-w-md mx-auto space-y-6 p-6">
@@ -178,26 +170,72 @@ export default function SurveyForm() {
         )}
       </div>
 
-      {/* Different Locations Option */}
-      {bothMealsSelected && (
-        <div>
+      {/* Time Preference */}
+      <div>
+        <label className="block mb-2 font-medium">
+          Time Preference <span className="text-red-500">*</span>
+        </label>
+        <div className="space-x-4">
           <label className="inline-flex items-center">
             <input
               type="checkbox"
-              {...register('useDifferentLocations')}
+              value="weekdays"
+              {...register('timePreference')}
               className="mr-2"
             />
-            <span>Use different geographical preferences for lunch and dinner</span>
+            <span>Weekdays</span>
           </label>
+          <label className="inline-flex items-center">
+            <input
+              type="checkbox"
+              value="weekends"
+              {...register('timePreference')}
+              className="mr-2"
+            />
+            <span>Weekends</span>
+          </label>
+        </div>
+        {errors.timePreference && (
+          <p className="text-red-500 text-sm mt-1">{errors.timePreference.message}</p>
+        )}
+      </div>
+
+      {/* Different Locations Options */}
+      {(bothMealsSelected || bothTimesSelected) && (
+        <div className="space-y-2">
+          {bothMealsSelected && (
+            <div>
+              <label className="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  {...register('useDifferentMealLocations')}
+                  className="mr-2"
+                />
+                <span>Use different locations for lunch and dinner</span>
+              </label>
+            </div>
+          )}
+          {bothTimesSelected && (
+            <div>
+              <label className="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  {...register('useDifferentTimeLocations')}
+                  className="mr-2"
+                />
+                <span>Use different locations for weekdays and weekends</span>
+              </label>
+            </div>
+          )}
         </div>
       )}
 
       {/* Location Preferences */}
-      {!useDifferentLocations && (
+      {!useDifferentMealLocations && !useDifferentTimeLocations && (
         <div>
           <label className="block mb-2 font-medium">
-          Preferred Locations <span className="text-red-500">*</span>
-        </label>
+            Preferred Locations <span className="text-red-500">*</span>
+          </label>
           <div className="grid grid-cols-1 gap-2">
             {LOCATIONS.map((location) => (
               <label key={location} className="flex items-center p-2 rounded hover:bg-gray-50">
@@ -217,8 +255,8 @@ export default function SurveyForm() {
         </div>
       )}
 
-      {/* Separate Lunch and Dinner Locations */}
-      {useDifferentLocations && (
+      {/* Meal-specific Locations */}
+      {useDifferentMealLocations && (
         <>
           {meetingPreference?.includes('lunch') && (
             <div>
@@ -236,9 +274,6 @@ export default function SurveyForm() {
                   </label>
                 ))}
               </div>
-              {errors.lunchLocations && (
-                <p className="text-red-500 text-sm mt-1">{errors.lunchLocations.message}</p>
-              )}
             </div>
           )}
 
@@ -258,9 +293,49 @@ export default function SurveyForm() {
                   </label>
                 ))}
               </div>
-              {errors.dinnerLocations && (
-                <p className="text-red-500 text-sm mt-1">{errors.dinnerLocations.message}</p>
-              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Time-specific Locations */}
+      {useDifferentTimeLocations && (
+        <>
+          {timePreference?.includes('weekdays') && (
+            <div>
+              <label className="block mb-2 font-medium">Weekday Locations</label>
+              <div className="grid grid-cols-1 gap-2">
+                {LOCATIONS.map((location) => (
+                  <label key={location} className="flex items-center p-2 rounded hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      value={location}
+                      {...register('weekdayLocations')}
+                      className="mr-3"
+                    />
+                    <span>{location}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {timePreference?.includes('weekends') && (
+            <div>
+              <label className="block mb-2 font-medium">Weekend Locations</label>
+              <div className="grid grid-cols-1 gap-2">
+                {LOCATIONS.map((location) => (
+                  <label key={location} className="flex items-center p-2 rounded hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      value={location}
+                      {...register('weekendLocations')}
+                      className="mr-3"
+                    />
+                    <span>{location}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           )}
         </>
@@ -269,10 +344,9 @@ export default function SurveyForm() {
       {/* Submit Button */}
       <button 
         type="submit" 
-        disabled={isSubmitting}
         className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition"
       >
-        {isSubmitting ? 'Submitting...' : 'Submit Survey'}
+        Submit Survey
       </button>
     </form>
   );
