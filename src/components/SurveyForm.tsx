@@ -22,46 +22,28 @@ const surveySchema = z.object({
   useDifferentMealLocations: z.boolean().default(false),
   useDifferentTimeLocations: z.boolean().default(false),
   locations: z.array(z.string()),
-  lunchLocations: z.array(z.string()),
-  dinnerLocations: z.array(z.string()),
-  weekdayLocations: z.array(z.string()),
-  weekendLocations: z.array(z.string())
+  lunchLocations: z.array(z.string()).default([]),
+  dinnerLocations: z.array(z.string()).default([]),
+  weekdayLocations: z.array(z.string()).default([]),
+  weekendLocations: z.array(z.string()).default([])
 }).refine((data) => {
-  // For single location preference
   if (!data.useDifferentMealLocations && !data.useDifferentTimeLocations) {
     return data.locations.length > 0;
   }
 
-  // For meal-specific locations
-  if (data.useDifferentMealLocations) {
-    const needsLunch = data.meetingPreference.includes('lunch');
-    const needsDinner = data.meetingPreference.includes('dinner');
-    
-    if (needsLunch && (!data.lunchLocations || data.lunchLocations.length === 0)) {
-      return false;
-    }
-    if (needsDinner && (!data.dinnerLocations || data.dinnerLocations.length === 0)) {
-      return false;
-    }
-  }
-
-  // For time-specific locations
   if (data.useDifferentTimeLocations) {
-    const needsWeekday = data.timePreference.includes('weekdays');
-    const needsWeekend = data.timePreference.includes('weekends');
-    
-    console.log('Time validation:', {
-      needsWeekday,
-      needsWeekend,
-      weekdayLocations: data.weekdayLocations,
-      weekendLocations: data.weekendLocations
-    });
-
-    if (needsWeekday && data.weekdayLocations.length === 0) {
-      return false;
+    // Check weekday locations if weekdays are selected
+    if (data.timePreference.includes('weekdays')) {
+      if (data.weekdayLocations.length === 0) {
+        return false;
+      }
     }
-    if (needsWeekend && data.weekendLocations.length === 0) {
-      return false;
+    
+    // Check weekend locations if weekends are selected
+    if (data.timePreference.includes('weekends')) {
+      if (data.weekendLocations.length === 0) {
+        return false;
+      }
     }
   }
 
