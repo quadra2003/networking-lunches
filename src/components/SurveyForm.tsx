@@ -30,25 +30,30 @@ const surveySchema = z.object({
   if (!data.useDifferentMealLocations && !data.useDifferentTimeLocations) {
     return data.locations.length > 0;
   }
+  
+  let isValid = true;
+  
   if (data.useDifferentMealLocations) {
-    if (data.meetingPreference.includes('lunch') && (!data.lunchLocations || data.lunchLocations.length === 0)) {
-      return false;
+    if (data.meetingPreference.includes('lunch')) {
+      isValid = isValid && data.lunchLocations && data.lunchLocations.length > 0;
     }
-    if (data.meetingPreference.includes('dinner') && (!data.dinnerLocations || data.dinnerLocations.length === 0)) {
-      return false;
+    if (data.meetingPreference.includes('dinner')) {
+      isValid = isValid && data.dinnerLocations && data.dinnerLocations.length > 0;
     }
   }
+  
   if (data.useDifferentTimeLocations) {
-    if (data.timePreference.includes('weekdays') && (!data.weekdayLocations || data.weekdayLocations.length === 0)) {
-      return false;
+    if (data.timePreference.includes('weekdays')) {
+      isValid = isValid && data.weekdayLocations && data.weekdayLocations.length > 0;
     }
-    if (data.timePreference.includes('weekends') && (!data.weekendLocations || data.weekendLocations.length === 0)) {
-      return false;
+    if (data.timePreference.includes('weekends')) {
+      isValid = isValid && data.weekendLocations && data.weekendLocations.length > 0;
     }
   }
-  return true;
+  
+  return isValid;
 }, {
-  message: "Please select at least one location for each selected preference"
+  message: "Please select at least one location for each preference"
 });
 
 type SurveyFormData = z.infer<typeof surveySchema>;
