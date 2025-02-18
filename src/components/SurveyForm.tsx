@@ -103,25 +103,29 @@ export default function SurveyForm() {
   const bothTimesSelected = timePreference?.includes('weekdays') && timePreference?.includes('weekends');
 
   const onSubmit = async (data: SurveyFormData) => {
-    setIsSubmitting(true);
-    try {
-      const { db } = await import('@/lib/firebase');
-      const { collection, addDoc } = await import('firebase/firestore');
-      
-      const surveyRef = collection(db, 'survey-responses');
-      await addDoc(surveyRef, {
-        ...data,
-        submittedAt: new Date()
-      });
-      
-      setSubmitSuccess(true);
-    } catch (error) {
-      console.error('Survey submission error:', error);
-      alert('There was an error submitting your survey. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+      console.log('Submit function called', data);
+      setIsSubmitting(true);
+      try {
+        const { db } = await import('@/lib/firebase');
+        const { collection, addDoc } = await import('firebase/firestore');
+        
+        // Prevent default form behavior
+        // e.preventDefault();
+        
+        const surveyRef = collection(db, 'survey-responses');
+        await addDoc(surveyRef, {
+          ...data,
+          submittedAt: new Date()
+        });
+        
+        setSubmitSuccess(true);
+      } catch (error) {
+        console.error('Survey submission error:', error);
+        alert('There was an error submitting your survey. Please try again.');
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
 
 
 if (submitSuccess) {
@@ -385,8 +389,12 @@ if (submitSuccess) {
     }
   };
 
- return (
-    <div className="max-w-2xl mx-auto p-6">
+  return (
+    <form onSubmit={handleSubmit((data) => {
+      console.log('Form submitted', data);
+      onSubmit(data);
+    })}>
+      <div className="max-w-2xl mx-auto p-6">
       {/* Progress Steps */}
       <div className="mb-8">
         <div className="flex justify-between mb-4">
@@ -460,5 +468,6 @@ if (submitSuccess) {
         )}
       </div>
     </div>
+      </form>
   );
 }
