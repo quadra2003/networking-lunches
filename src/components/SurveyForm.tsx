@@ -17,9 +17,6 @@ const surveySchema = z.object({
   name: z.string().min(2, "Name is required and must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
   department: z.string().optional(),
-  workLocation: z.enum(['In-Office', 'Remote', 'Hybrid'], {
-    required_error: "Please select your work location"
-  }),
   meetingPreference: z.array(z.enum(['lunch', 'dinner'])).min(1, "Please select at least one meal preference"),
   useDifferentLocations: z.boolean().optional().default(false),
   locations: z.array(z.string()).min(1, "Please select at least one location"),
