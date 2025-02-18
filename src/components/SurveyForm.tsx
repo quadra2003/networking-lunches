@@ -386,9 +386,10 @@ if (submitSuccess) {
   };
 
   return (
-      <form onSubmit={handleSubmit(onSubmit)} className="max-w-2xl mx-auto p-6">
-      {/* Progress Steps */}
-      <div className="mb-8">
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <div className="max-w-2xl mx-auto p-6">
+        {/* Progress Steps */}
+        <div className="mb-8">
         <div className="flex justify-between mb-4">
           {steps.map((step, index) => (
             <div
@@ -422,7 +423,7 @@ if (submitSuccess) {
             </div>
           ))}
         </div>
-      </form>
+      </div>
 
       {/* Step Content */}
       <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
@@ -458,6 +459,6 @@ if (submitSuccess) {
           </button>
         )}
       </div>
-    </div>
+    </form>
   );
 }
