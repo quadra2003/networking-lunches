@@ -50,10 +50,17 @@ const surveySchema = z.object({
     const needsWeekday = data.timePreference.includes('weekdays');
     const needsWeekend = data.timePreference.includes('weekends');
     
-    if (needsWeekday && (!data.weekdayLocations || data.weekdayLocations.length === 0)) {
+    console.log('Time validation:', {
+      needsWeekday,
+      needsWeekend,
+      weekdayLocations: data.weekdayLocations,
+      weekendLocations: data.weekendLocations
+    });
+
+    if (needsWeekday && data.weekdayLocations.length === 0) {
       return false;
     }
-    if (needsWeekend && (!data.weekendLocations || data.weekendLocations.length === 0)) {
+    if (needsWeekend && data.weekendLocations.length === 0) {
       return false;
     }
   }
@@ -115,9 +122,14 @@ export default function SurveyForm() {
   const bothTimesSelected = timePreference?.includes('weekdays') && timePreference?.includes('weekends');
 
   const onSubmit = async (data: SurveyFormData) => {
-      console.log('Submit function called', data);
-      setIsSubmitting(true);
-      try {
+    console.log('Submit attempt:', {
+      timePreference: data.timePreference,
+      useDifferentTimeLocations: data.useDifferentTimeLocations,
+      weekdayLocations: data.weekdayLocations,
+      weekendLocations: data.weekendLocations
+    });
+    setIsSubmitting(true);
+    try {
         const { db } = await import('@/lib/firebase');
         const { collection, addDoc } = await import('firebase/firestore');
         
