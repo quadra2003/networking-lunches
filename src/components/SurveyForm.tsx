@@ -49,7 +49,7 @@ export default function SurveyForm() {
         <h2 className="text-2xl font-bold text-green-600">
           Thank you for submitting your survey!
         </h2>
-        <p className="mt-4">We'll be in touch about your networking lunch group.</p>
+        <p className="mt-4">We&apos;ll be in touch about your networking lunch group.</p>
       </div>
     );
   }

@@ -14,9 +14,6 @@ import {
   import { app } from './firebase';
   import { SurveyResponse } from '../types/SurveyResponse';
   
-// Remove or comment out the unused import
-// If you might use it later, add a comment to disable the lint rule
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 // import { DocumentSnapshot } from 'firebase/firestore';
 
   // Initialize Firestore
