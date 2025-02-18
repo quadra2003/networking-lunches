@@ -85,7 +85,11 @@ export default function SurveyForm() {
   const bothMealsSelected = meetingPreference?.includes('lunch') && meetingPreference?.includes('dinner');
   const bothTimesSelected = timePreference?.includes('weekdays') && timePreference?.includes('weekends');
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
   const onSubmit = async (data: SurveyFormData) => {
+    setIsSubmitting(true);
     try {
       console.log('Submitting form data:', data);
       
@@ -99,13 +103,32 @@ export default function SurveyForm() {
       });
       
       console.log('Document written with ID:', docRef.id);
-      alert('Thank you for submitting your preferences!');
-      
+      setSubmitSuccess(true);
     } catch (error) {
       console.error('Survey submission error:', error);
       alert('There was an error submitting your survey. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  if (submitSuccess) {
+    return (
+      <div className="max-w-md mx-auto p-8 text-center">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-2xl font-bold text-green-600 mb-4">
+            Thank you for submitting your preferences!
+          </h2>
+          <p className="text-gray-600 mb-6">
+            We&apos;ll use your preferences to match you with networking opportunities that work best for you.
+          </p>
+          <p className="text-gray-600">
+            You&apos;ll receive an email when your group has been formed.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="max-w-md mx-auto space-y-6 p-6">
