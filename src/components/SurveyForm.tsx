@@ -77,7 +77,7 @@ export default function SurveyForm() {
     register, 
     handleSubmit, 
     watch,
-    formState: { errors, isValid } 
+    formState: { errors } 
   } = useForm<SurveyFormData>({
     resolver: zodResolver(surveySchema),
     mode: "onChange",
