@@ -434,7 +434,7 @@ if (submitSuccess) {
         <button
           type="button"
           onClick={() => setCurrentStep(current => current - 1)}
-          disabled={currentStep === 0}
+          disabled={currentStep === 0 || isSubmitting}
           className="px-4 py-2 text-blue-600 border border-blue-600 rounded hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Previous
@@ -444,7 +444,7 @@ if (submitSuccess) {
           <button
             onClick={handleSubmit(onSubmit)}
             disabled={isSubmitting}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Submitting...' : 'Submit'}
           </button>
