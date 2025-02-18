@@ -5,8 +5,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
-const [stepError, setStepError] = useState<string | null>(null);
-
 const LOCATIONS = [
   'Irvine/Costa Mesa/John Wayne Airport',
   'Tustin',
@@ -81,6 +79,7 @@ export default function SurveyForm() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [stepError, setStepError] = useState<string | null>(null);
 
   const { 
     register, 
