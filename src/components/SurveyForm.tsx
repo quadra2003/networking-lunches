@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
+const [stepError, setStepError] = useState<string | null>(null);
+
 const LOCATIONS = [
   'Irvine/Costa Mesa/John Wayne Airport',
   'Tustin',
@@ -356,7 +358,15 @@ export default function SurveyForm() {
                 : true;
               
               if (currentStepValid) {
+                setStepError(null);
                 setCurrentStep(current => current + 1);
+              } else {
+                const errorMessage = currentStep === 0 
+                  ? "Please fill in both name and email"
+                  : currentStep === 1 
+                  ? "Please select at least one availability option"
+                  : "";
+                setStepError(errorMessage);
               }
             }}
             disabled={isSubmitting}
@@ -364,8 +374,14 @@ export default function SurveyForm() {
           >
             Next
           </button>
+
         )}
       </div>
+            {stepError && (
+        <div className="mt-4 text-center text-red-500">
+          {stepError}
+        </div>
+      )}
     </div>
   );
 }
