@@ -19,41 +19,48 @@ const surveySchema = z.object({
   department: z.string().optional(),
   meetingPreference: z.array(z.enum(['lunch', 'dinner'])).min(1, "Please select at least one meal preference"),
   timePreference: z.array(z.enum(['weekdays', 'weekends'])).min(1, "Please select at least one time preference"),
-  useDifferentMealLocations: z.boolean().optional().default(false),
-  useDifferentTimeLocations: z.boolean().optional().default(false),
-  locations: z.array(z.string()).min(1, "Please select at least one location"),
-  lunchLocations: z.array(z.string()).optional(),
-  dinnerLocations: z.array(z.string()).optional(),
-  weekdayLocations: z.array(z.string()).optional(),
-  weekendLocations: z.array(z.string()).optional()
+  useDifferentMealLocations: z.boolean().default(false),
+  useDifferentTimeLocations: z.boolean().default(false),
+  locations: z.array(z.string()),
+  lunchLocations: z.array(z.string()),
+  dinnerLocations: z.array(z.string()),
+  weekdayLocations: z.array(z.string()),
+  weekendLocations: z.array(z.string())
 }).refine((data) => {
+  // For single location preference
   if (!data.useDifferentMealLocations && !data.useDifferentTimeLocations) {
     return data.locations.length > 0;
   }
-  
-  let isValid = true;
-  
+
+  // For meal-specific locations
   if (data.useDifferentMealLocations) {
-    if (data.meetingPreference.includes('lunch')) {
-      isValid = isValid && data.lunchLocations && data.lunchLocations.length > 0;
+    const needsLunch = data.meetingPreference.includes('lunch');
+    const needsDinner = data.meetingPreference.includes('dinner');
+    
+    if (needsLunch && (!data.lunchLocations || data.lunchLocations.length === 0)) {
+      return false;
     }
-    if (data.meetingPreference.includes('dinner')) {
-      isValid = isValid && data.dinnerLocations && data.dinnerLocations.length > 0;
+    if (needsDinner && (!data.dinnerLocations || data.dinnerLocations.length === 0)) {
+      return false;
     }
   }
-  
+
+  // For time-specific locations
   if (data.useDifferentTimeLocations) {
-    if (data.timePreference.includes('weekdays')) {
-      isValid = isValid && data.weekdayLocations && data.weekdayLocations.length > 0;
+    const needsWeekday = data.timePreference.includes('weekdays');
+    const needsWeekend = data.timePreference.includes('weekends');
+    
+    if (needsWeekday && (!data.weekdayLocations || data.weekdayLocations.length === 0)) {
+      return false;
     }
-    if (data.timePreference.includes('weekends')) {
-      isValid = isValid && data.weekendLocations && data.weekendLocations.length > 0;
+    if (needsWeekend && (!data.weekendLocations || data.weekendLocations.length === 0)) {
+      return false;
     }
   }
-  
-  return isValid;
+
+  return true;
 }, {
-  message: "Please select at least one location for each preference"
+  message: "Please select at least one location for each selected preference"
 });
 
 type SurveyFormData = z.infer<typeof surveySchema>;
