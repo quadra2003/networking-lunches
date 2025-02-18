@@ -7,6 +7,8 @@ import {
     query,
     where,
     getDocs,
+    doc,
+    getDoc,
     DocumentSnapshot,
     QueryDocumentSnapshot
   } from 'firebase/firestore';
