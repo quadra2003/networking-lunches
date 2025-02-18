@@ -148,23 +148,6 @@ export default function SurveyForm() {
         )}
       </div>
 
-      {/* Work Location */}
-      <div>
-        <label className="block mb-2 font-medium">Work Location</label>
-        <select 
-          {...register('workLocation')}
-          className="w-full px-3 py-2 border rounded"
-        >
-          <option value="">Select Work Location</option>
-          <option value="In-Office">In-Office</option>
-          <option value="Remote">Remote</option>
-          <option value="Hybrid">Hybrid</option>
-        </select>
-        {errors.workLocation && (
-          <p className="text-red-500 text-sm mt-1">{errors.workLocation.message}</p>
-        )}
-      </div>
-
       {/* Meeting Preference */}
       <div>
         <label className="block mb-2 font-medium">
