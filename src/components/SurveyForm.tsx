@@ -385,11 +385,10 @@ if (submitSuccess) {
     }
   };
 
-  return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <div className="max-w-2xl mx-auto p-6">
-        {/* Progress Steps */}
-        <div className="mb-8">
+ return (
+    <div className="max-w-2xl mx-auto p-6">
+      {/* Progress Steps */}
+      <div className="mb-8">
         <div className="flex justify-between mb-4">
           {steps.map((step, index) => (
             <div
@@ -453,12 +452,13 @@ if (submitSuccess) {
           <button
             type="button"
             onClick={() => setCurrentStep(current => current + 1)}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            disabled={isSubmitting}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed"
           >
             Next
           </button>
         )}
       </div>
-    </form>
+    </div>
   );
 }
