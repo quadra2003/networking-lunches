@@ -386,7 +386,7 @@ if (submitSuccess) {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="max-w-2xl mx-auto p-6">
       {/* Progress Steps */}
       <div className="mb-8">
         <div className="flex justify-between mb-4">
@@ -422,7 +422,7 @@ if (submitSuccess) {
             </div>
           ))}
         </div>
-      </div>
+      </form>
 
       {/* Step Content */}
       <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
