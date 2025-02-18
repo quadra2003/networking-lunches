@@ -16,15 +16,23 @@ const LOCATIONS = [
 const locationSchema = z.array(z.string()).min(1, "Select at least one location");
 
 const surveySchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
+  name: z.string().min(2, "Name is required and must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
   department: z.string().optional(),
-  workLocation: z.enum(['In-Office', 'Remote', 'Hybrid']),
-  meetingPreference: z.array(z.enum(['lunch', 'dinner'])).min(1, "Select at least one meeting time"),
+  workLocation: z.enum(['In-Office', 'Remote', 'Hybrid'], {
+    required_error: "Please select your work location"
+  }),
+  meetingPreference: z.array(z.enum(['lunch', 'dinner'])).min(1, "Please select at least one meal preference"),
   useDifferentLocations: z.boolean().optional(),
-  locations: locationSchema,
-  lunchLocations: locationSchema.optional(),
-  dinnerLocations: locationSchema.optional()
+  locations: locationSchema.refine((data) => !useDifferentLocations && data.length > 0, {
+    message: "Please select at least one location"
+  }),
+  lunchLocations: z.array(z.string()).refine((data) => !useDifferentLocations || data.length > 0, {
+    message: "Please select at least one lunch location"
+  }).optional(),
+  dinnerLocations: z.array(z.string()).refine((data) => !useDifferentLocations || data.length > 0, {
+    message: "Please select at least one dinner location"
+  }).optional()
 });
 
 type SurveyFormData = z.infer<typeof surveySchema>;
@@ -32,7 +40,6 @@ type SurveyFormData = z.infer<typeof surveySchema>;
 export default function SurveyForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [showDifferentLocations, setShowDifferentLocations] = useState(false);
 
   const { 
     register, 
@@ -106,7 +113,9 @@ export default function SurveyForm() {
     <form onSubmit={handleSubmit(onSubmit)} className="max-w-md mx-auto space-y-6 p-6">
       {/* Name Input */}
       <div>
-        <label className="block mb-2 font-medium">Name</label>
+        <label className="block mb-2 font-medium">
+          Name <span className="text-red-500">*</span>
+        </label>
         <input 
           {...register('name')}
           className="w-full px-3 py-2 border rounded"
@@ -119,7 +128,9 @@ export default function SurveyForm() {
 
       {/* Email Input */}
       <div>
-        <label className="block mb-2 font-medium">Email</label>
+        <label className="block mb-2 font-medium">
+          Email <span className="text-red-500">*</span>
+        </label>
         <input 
           {...register('email')}
           type="email"
@@ -150,7 +161,9 @@ export default function SurveyForm() {
 
       {/* Meeting Preference */}
       <div>
-        <label className="block mb-2 font-medium">Meeting Preference</label>
+        <label className="block mb-2 font-medium">
+          Meeting Preference <span className="text-red-500">*</span>
+        </label>
         <div className="space-x-4">
           <label className="inline-flex items-center">
             <input
@@ -193,7 +206,9 @@ export default function SurveyForm() {
       {/* Location Preferences */}
       {!useDifferentLocations && (
         <div>
-          <label className="block mb-2 font-medium">Preferred Locations</label>
+          <label className="block mb-2 font-medium">
+          Preferred Locations <span className="text-red-500">*</span>
+        </label>
           <div className="grid grid-cols-1 gap-2">
             {LOCATIONS.map((location) => (
               <label key={location} className="flex items-center p-2 rounded hover:bg-gray-50">
