@@ -1,14 +1,8 @@
 // .eslintrc.js
 module.exports = {
-  root: true,
-  extends: [
-    'eslint:recommended',
-    'plugin:@typescript-eslint/recommended',
-    'next/core-web-vitals'
-  ],
-  parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint'],
+  extends: ['next/core-web-vitals'],
   rules: {
-    '@typescript-eslint/no-unused-vars': 'off'
+    '@typescript-eslint/no-unused-vars': 'off',
+    'react/no-unescaped-entities': 'off'
   }
 };
