@@ -8,7 +8,6 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-
 const LOCATIONS = [
   'Irvine/Costa Mesa/John Wayne Airport',
   'Tustin',
@@ -45,7 +44,6 @@ const surveySchema = z.object({
 });
 
 type SurveyFormData = z.infer<typeof surveySchema>;
-
 
 const steps = [
   {
@@ -91,46 +89,42 @@ export default function SurveyForm() {
   const selectedAvailability = watch('availability');
   const useSeparateLocations = watch('useSeparateLocations');
   const watchEmail = watch('email');
-
-  // Check for existing submission when email is entered
   React.useEffect(() => {
-    const checkExistingSubmission = async () => {
-      if (!watchEmail) return;
+    if (!watchEmail) return;
+
+    const checkExistingSubmission = () => {
+      const surveyRef = collection(db, 'survey-responses');
+      const q = query(
+        surveyRef, 
+        where('email', '==', watchEmail),
+        where('cycle', '==', 'March 2025')
+      );
       
-      try {
-        const surveyRef = collection(db, 'survey-responses');
-        const q = query(
-          surveyRef, 
-          where('email', '==', watchEmail),
-          where('cycle', '==', 'March 2025') // Add cycle filtering
-        );
-        
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-          const existingData = querySnapshot.docs[0].data() as SurveyFormData;
-          setExistingSubmission(existingData);
-          // Optionally populate form with existing data
-          reset(existingData);
-        } else {
-          setExistingSubmission(null);
-        }
-      } catch (error) {
-        console.error('Error checking for existing submission:', error);
-      }
+      getDocs(q)
+        .then(querySnapshot => {
+          if (!querySnapshot.empty) {
+            const existingData = querySnapshot.docs[0].data() as SurveyFormData;
+            setExistingSubmission(existingData);
+            reset(existingData);
+          } else {
+            setExistingSubmission(null);
+          }
+        })
+        .catch(error => {
+          console.error('Error checking for existing submission:', error);
+        });
     };
 
     checkExistingSubmission();
   }, [watchEmail, reset]);
-  
-  const onSubmit = React.useCallback(async (data: SurveyFormData) => {
+
+  const onSubmit = React.useCallback((data: SurveyFormData) => {
     console.log('Submit attempt:', data);
     setIsSubmitting(true);
-    try {
-      const { collection, addDoc, query, where, getDocs, updateDoc, doc } = await import('firebase/firestore');
+
+    import('firebase/firestore').then(({ collection, addDoc, query, where, getDocs, updateDoc, doc }) => {
       const surveyRef = collection(db, 'survey-responses');
-
-
-      // Add cycle information to the submission
+      
       const submissionData = {
         ...data,
         cycle: 'March 2025',
@@ -138,44 +132,29 @@ export default function SurveyForm() {
       };
 
       if (existingSubmission) {
-        // Update existing submission
         const q = query(surveyRef, 
           where('email', '==', data.email),
           where('cycle', '==', 'March 2025')
         );
-        const querySnapshot = await getDocs(q);
-        const docRef = doc(db, 'survey-responses', querySnapshot.docs[0].id);
-        await updateDoc(docRef, submissionData);
+        return getDocs(q).then(querySnapshot => {
+          const docRef = doc(db, 'survey-responses', querySnapshot.docs[0].id);
+          return updateDoc(docRef, submissionData);
+        });
       } else {
-        // Create new submission
-        await addDoc(surveyRef, submissionData);
+        return addDoc(surveyRef, submissionData);
       }
-      
+    })
+    .then(() => {
       setSubmitSuccess(true);
-    } catch (error) {
+    })
+    .catch(error => {
       console.error('Survey submission error:', error);
       alert('There was an error submitting your survey. Please try again.');
-    } finally {
+    })
+    .finally(() => {
       setIsSubmitting(false);
-    }
+    });
   }, [existingSubmission]);
-
-      
-      const surveyRef = collection(db, 'survey-responses');
-      const docRef = await addDoc(surveyRef, {
-        ...data,
-        submittedAt: new Date()
-      });
-      
-      console.log('Document written with ID:', docRef.id);
-      setSubmitSuccess(true);
-    } catch (error) {
-      console.error('Survey submission error:', error);
-      alert('There was an error submitting your survey. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, []);
 
   const handleNextStep = React.useCallback(() => {
     const currentStepValid = currentStep === 0 
@@ -232,8 +211,7 @@ export default function SurveyForm() {
             </div>
           </div>
         );
-
-      case 1:
+        case 1:
         return (
           <div className="space-y-6">
             <div>
@@ -355,7 +333,6 @@ export default function SurveyForm() {
     );
   }
 
-
   return (
     <div className="max-w-2xl mx-auto p-6">
       {/* Organization and Cycle Information */}
@@ -372,7 +349,7 @@ export default function SurveyForm() {
           </AlertDescription>
         </Alert>
       )}
-            
+
       {/* Progress Steps */}
       <div className="mb-8">
         <div className="flex justify-between mb-4">
