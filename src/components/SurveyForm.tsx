@@ -4,6 +4,10 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
 
 const LOCATIONS = [
   'Irvine/Costa Mesa/John Wayne Airport',
@@ -26,9 +30,7 @@ const surveySchema = z.object({
   department: z.string().optional(),
   availability: z.array(z.enum(AVAILABILITY_OPTIONS)).min(1, "Please select at least one availability option"),
   useSeparateLocations: z.boolean().default(false),
-  // For single location preference
   locations: z.array(z.string()),
-  // For separate location preferences
   weekdayLunchLocations: z.array(z.string()).default([]),
   weekdayDinnerLocations: z.array(z.string()).default([]),
   weekendLunchLocations: z.array(z.string()).default([]),
@@ -37,28 +39,13 @@ const surveySchema = z.object({
   if (!data.useSeparateLocations) {
     return data.locations.length > 0;
   }
-
-  const hasValidLocations = data.availability.every(option => {
-    switch (option) {
-      case 'Weekday Lunch':
-        return data.weekdayLunchLocations.length > 0;
-      case 'Weekday Dinner':
-        return data.weekdayDinnerLocations.length > 0;
-      case 'Weekend Lunch':
-        return data.weekendLunchLocations.length > 0;
-      case 'Weekend Dinner':
-        return data.weekendDinnerLocations.length > 0;
-      default:
-        return false;
-    }
-  });
-
-  return hasValidLocations;
+  return true;
 }, {
   message: "Please select at least one location for each availability option"
 });
 
 type SurveyFormData = z.infer<typeof surveySchema>;
+
 
 const steps = [
   {
@@ -80,11 +67,13 @@ export default function SurveyForm() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitSuccess, setSubmitSuccess] = React.useState(false);
   const [stepError, setStepError] = React.useState<string | null>(null);
+  const [existingSubmission, setExistingSubmission] = React.useState<SurveyFormData | null>(null);
 
   const { 
     register, 
     handleSubmit, 
     watch,
+    reset,
     formState: { errors } 
   } = useForm<SurveyFormData>({
     resolver: zodResolver(surveySchema),
@@ -101,13 +90,76 @@ export default function SurveyForm() {
 
   const selectedAvailability = watch('availability');
   const useSeparateLocations = watch('useSeparateLocations');
+  const watchEmail = watch('email');
 
+  // Check for existing submission when email is entered
+  React.useEffect(() => {
+    const checkExistingSubmission = async () => {
+      if (!watchEmail) return;
+      
+      try {
+        const surveyRef = collection(db, 'survey-responses');
+        const q = query(
+          surveyRef, 
+          where('email', '==', watchEmail),
+          where('cycle', '==', 'March 2025') // Add cycle filtering
+        );
+        
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const existingData = querySnapshot.docs[0].data() as SurveyFormData;
+          setExistingSubmission(existingData);
+          // Optionally populate form with existing data
+          reset(existingData);
+        } else {
+          setExistingSubmission(null);
+        }
+      } catch (error) {
+        console.error('Error checking for existing submission:', error);
+      }
+    };
+
+    checkExistingSubmission();
+  }, [watchEmail, reset]);
+  
   const onSubmit = React.useCallback(async (data: SurveyFormData) => {
     console.log('Submit attempt:', data);
     setIsSubmitting(true);
     try {
-      const { db } = await import('@/lib/firebase');
-      const { collection, addDoc } = await import('firebase/firestore');
+      const { collection, addDoc, query, where, getDocs, updateDoc, doc } = await import('firebase/firestore');
+      const surveyRef = collection(db, 'survey-responses');
+
+
+      // Add cycle information to the submission
+      const submissionData = {
+        ...data,
+        cycle: 'March 2025',
+        submittedAt: new Date()
+      };
+
+      if (existingSubmission) {
+        // Update existing submission
+        const q = query(surveyRef, 
+          where('email', '==', data.email),
+          where('cycle', '==', 'March 2025')
+        );
+        const querySnapshot = await getDocs(q);
+        const docRef = doc(db, 'survey-responses', querySnapshot.docs[0].id);
+        await updateDoc(docRef, submissionData);
+      } else {
+        // Create new submission
+        await addDoc(surveyRef, submissionData);
+      }
+      
+      setSubmitSuccess(true);
+    } catch (error) {
+      console.error('Survey submission error:', error);
+      alert('There was an error submitting your survey. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [existingSubmission]);
+
       
       const surveyRef = collection(db, 'survey-responses');
       const docRef = await addDoc(surveyRef, {
@@ -293,18 +345,34 @@ export default function SurveyForm() {
             Thank you for submitting your preferences!
           </h2>
           <p className="text-gray-600 mb-6">
-            We&apos;ll use your preferences to match you with networking opportunities that work best for you.
+            We'll use your preferences to match you with networking opportunities that work best for you.
           </p>
           <p className="text-gray-600">
-            You&apos;ll receive an email when your group has been formed.
+            You'll receive an email when your group has been formed.
           </p>
         </div>
       </div>
     );
   }
 
+
   return (
     <div className="max-w-2xl mx-auto p-6">
+      {/* Organization and Cycle Information */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">OCKABA</h1>
+        <h2 className="text-xl text-gray-600 mb-6">Networking Lunches for March 2025</h2>
+      </div>
+
+      {/* Existing Submission Alert */}
+      {existingSubmission && (
+        <Alert className="mb-6">
+          <AlertDescription>
+            We found an existing submission for this email address. Your previous responses have been loaded and you can modify them below.
+          </AlertDescription>
+        </Alert>
+      )}
+            
       {/* Progress Steps */}
       <div className="mb-8">
         <div className="flex justify-between mb-4">
