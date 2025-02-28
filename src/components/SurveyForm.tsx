@@ -23,10 +23,53 @@ const AVAILABILITY_OPTIONS = [
   'Weekend Dinner'
 ] as const;
 
+// New bar association specific options
+const PRACTICE_AREAS = [
+  'Corporate Law',
+  'Litigation',
+  'Family Law',
+  'Criminal Law',
+  'Intellectual Property',
+  'Real Estate',
+  'Estate Planning',
+  'Immigration',
+  'Tax Law',
+  'Employment Law',
+  'Environmental Law',
+  'Healthcare',
+  'Insurance Defense',
+  'Personal Injury',
+  'Bankruptcy',
+  'Other'
+];
+
+const EXPERIENCE_LEVELS = [
+  '0-3 years',
+  '4-7 years',
+  '8-15 years',
+  '15+ years',
+  'Judicial Officer'
+] as const;
+
+const NETWORKING_GOALS = [
+  'Meet colleagues in my practice area',
+  'Expand network in different practice areas',
+  'Find mentorship opportunities',
+  'Offer mentorship to others',
+  'Discuss potential referrals',
+  'Explore job opportunities',
+  'Social connection with peers'
+] as const;
+
 const surveySchema = z.object({
   name: z.string().min(2, "Name is required and must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
-  department: z.string().optional(),
+  // Bar-specific fields
+  barNumber: z.string().optional(),
+  practiceAreas: z.array(z.string()).min(1, "Please select at least one practice area"),
+  experienceLevel: z.enum(EXPERIENCE_LEVELS),
+  networkingGoals: z.array(z.enum(NETWORKING_GOALS)).min(1, "Please select at least one networking goal"),
+  // Original fields
   availability: z.array(z.enum(AVAILABILITY_OPTIONS)).min(1, "Please select at least one availability option"),
   useSeparateLocations: z.boolean().default(false),
   locations: z.array(z.string()),
@@ -51,6 +94,10 @@ const steps = [
     description: "Your contact details"
   },
   {
+    title: "Professional Profile",
+    description: "Practice areas & experience"
+  },
+  {
     title: "Meeting Availability",
     description: "When you can meet"
   },
@@ -59,6 +106,9 @@ const steps = [
     description: "Where you'd like to meet"
   }
 ];
+
+const CURRENT_CYCLE = 'March 2025';
+const ASSOCIATION_NAME = 'OCKABA';
 
 export default function SurveyForm() {
   const [currentStep, setCurrentStep] = React.useState(0);
@@ -76,6 +126,8 @@ export default function SurveyForm() {
   } = useForm<SurveyFormData>({
     resolver: zodResolver(surveySchema),
     defaultValues: {
+      practiceAreas: [],
+      networkingGoals: [],
       availability: [],
       locations: [],
       useSeparateLocations: false,
@@ -89,96 +141,107 @@ export default function SurveyForm() {
   const selectedAvailability = watch('availability');
   const useSeparateLocations = watch('useSeparateLocations');
   const watchEmail = watch('email');
+  
   React.useEffect(() => {
     if (!watchEmail) return;
 
-    const checkExistingSubmission = () => {
+    const checkExistingSubmission = async () => {
       const surveyRef = collection(db, 'survey-responses');
       const q = query(
         surveyRef, 
         where('email', '==', watchEmail),
-        where('cycle', '==', 'March 2025')
+        where('cycle', '==', CURRENT_CYCLE)
       );
       
-      getDocs(q)
-        .then(querySnapshot => {
-          if (!querySnapshot.empty) {
-            const existingData = querySnapshot.docs[0].data() as SurveyFormData;
-            setExistingSubmission(existingData);
-            reset(existingData);
-          } else {
-            setExistingSubmission(null);
-          }
-        })
-        .catch(error => {
-          console.error('Error checking for existing submission:', error);
-        });
+      try {
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const existingData = querySnapshot.docs[0].data() as SurveyFormData;
+          setExistingSubmission(existingData);
+          reset(existingData);
+        } else {
+          setExistingSubmission(null);
+        }
+      } catch (error) {
+        console.error('Error checking for existing submission:', error);
+      }
     };
 
     checkExistingSubmission();
   }, [watchEmail, reset]);
 
-  const onSubmit = React.useCallback((data: SurveyFormData) => {
-    console.log('Submit attempt:', data);
+  const onSubmit = React.useCallback(async (data: SurveyFormData) => {
     setIsSubmitting(true);
 
-    import('firebase/firestore').then(({ collection, addDoc, query, where, getDocs, updateDoc, doc }) => {
+    try {
+      const { collection, addDoc, query, where, getDocs, updateDoc, doc } = await import('firebase/firestore');
+      
       const surveyRef = collection(db, 'survey-responses');
       
       const submissionData = {
         ...data,
-        cycle: 'March 2025',
-        submittedAt: new Date()
+        cycle: CURRENT_CYCLE,
+        association: ASSOCIATION_NAME,
+        submittedAt: new Date(),
+        status: 'pending' // Added for tracking match status
       };
 
       if (existingSubmission) {
         const q = query(surveyRef, 
           where('email', '==', data.email),
-          where('cycle', '==', 'March 2025')
+          where('cycle', '==', CURRENT_CYCLE)
         );
-        return getDocs(q).then(querySnapshot => {
-          const docRef = doc(db, 'survey-responses', querySnapshot.docs[0].id);
-          return updateDoc(docRef, submissionData);
-        });
+        
+        const querySnapshot = await getDocs(q);
+        const docRef = doc(db, 'survey-responses', querySnapshot.docs[0].id);
+        await updateDoc(docRef, submissionData);
       } else {
-        return addDoc(surveyRef, submissionData);
+        await addDoc(surveyRef, submissionData);
       }
-    })
-    .then(() => {
+      
       setSubmitSuccess(true);
-    })
-    .catch(error => {
+    } catch (error) {
       console.error('Survey submission error:', error);
       alert('There was an error submitting your survey. Please try again.');
-    })
-    .finally(() => {
+    } finally {
       setIsSubmitting(false);
-    });
+    }
   }, [existingSubmission]);
 
   const handleNextStep = React.useCallback(() => {
-    const currentStepValid = currentStep === 0 
-      ? Boolean(watch('name') && watch('email'))
-      : currentStep === 1 
-      ? selectedAvailability.length > 0
-      : true;
+    let currentStepValid = true;
+    let errorMessage = "";
+    
+    switch(currentStep) {
+      case 0: // Basic Information
+        currentStepValid = Boolean(watch('name') && watch('email'));
+        errorMessage = "Please fill in both name and email";
+        break;
+      case 1: // Professional Profile
+        currentStepValid = Boolean(
+          watch('practiceAreas')?.length > 0 && 
+          watch('experienceLevel') && 
+          watch('networkingGoals')?.length > 0
+        );
+        errorMessage = "Please complete all professional profile fields";
+        break;
+      case 2: // Meeting Availability
+        currentStepValid = selectedAvailability.length > 0;
+        errorMessage = "Please select at least one availability option";
+        break;
+    }
     
     if (currentStepValid) {
       setStepError(null);
       setCurrentStep(current => current + 1);
     } else {
-      const errorMessage = currentStep === 0 
-        ? "Please fill in both name and email"
-        : currentStep === 1 
-        ? "Please select at least one availability option"
-        : "";
       setStepError(errorMessage);
     }
   }, [currentStep, watch, selectedAvailability]);
 
   const renderStepContent = React.useCallback((step: number) => {
     switch (step) {
-      case 0:
+      case 0: // Basic Information
         return (
           <div className="space-y-4">
             <div>
@@ -209,9 +272,88 @@ export default function SurveyForm() {
                 <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
               )}
             </div>
+
+            <div>
+              <label className="block mb-2 font-medium">
+                Bar Number <span className="text-gray-400">(optional)</span>
+              </label>
+              <input 
+                {...register('barNumber')}
+                className="w-full px-3 py-2 border rounded"
+                placeholder="Your state bar number"
+              />
+            </div>
           </div>
         );
-        case 1:
+
+      case 1: // Professional Profile (New Step)
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="block mb-2 font-medium">
+                Practice Areas <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {PRACTICE_AREAS.map((area) => (
+                  <label key={area} className="flex items-center p-2 rounded hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      value={area}
+                      {...register('practiceAreas')}
+                      className="mr-3"
+                    />
+                    <span>{area}</span>
+                  </label>
+                ))}
+              </div>
+              {errors.practiceAreas && (
+                <p className="text-red-500 text-sm mt-1">{errors.practiceAreas.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block mb-2 font-medium">
+                Experience Level <span className="text-red-500">*</span>
+              </label>
+              <select 
+                {...register('experienceLevel')}
+                className="w-full px-3 py-2 border rounded"
+              >
+                <option value="">Select your experience level</option>
+                {EXPERIENCE_LEVELS.map((level) => (
+                  <option key={level} value={level}>{level}</option>
+                ))}
+              </select>
+              {errors.experienceLevel && (
+                <p className="text-red-500 text-sm mt-1">{errors.experienceLevel.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block mb-2 font-medium">
+                Networking Goals <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                {NETWORKING_GOALS.map((goal) => (
+                  <label key={goal} className="flex items-center p-2 rounded hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      value={goal}
+                      {...register('networkingGoals')}
+                      className="mr-3"
+                    />
+                    <span>{goal}</span>
+                  </label>
+                ))}
+              </div>
+              {errors.networkingGoals && (
+                <p className="text-red-500 text-sm mt-1">{errors.networkingGoals.message}</p>
+              )}
+            </div>
+          </div>
+        );
+
+      case 2: // Meeting Availability (Formerly step 1)
         return (
           <div className="space-y-6">
             <div>
@@ -238,7 +380,7 @@ export default function SurveyForm() {
           </div>
         );
 
-      case 2:
+      case 3: // Location Preferences (Formerly step 2)
         return (
           <div className="space-y-6">
             {selectedAvailability.length > 1 && (
@@ -337,8 +479,8 @@ export default function SurveyForm() {
     <div className="max-w-2xl mx-auto p-6">
       {/* Organization and Cycle Information */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">OCKABA</h1>
-        <h2 className="text-xl text-gray-600 mb-6">Networking Lunches for March 2025</h2>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">{ASSOCIATION_NAME}</h1>
+        <h2 className="text-xl text-gray-600 mb-6">Networking Lunches for {CURRENT_CYCLE}</h2>
       </div>
 
       {/* Existing Submission Alert */}
