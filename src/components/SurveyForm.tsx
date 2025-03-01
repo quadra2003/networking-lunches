@@ -23,7 +23,7 @@ const AVAILABILITY_OPTIONS = [
   'Weekend Dinner'
 ] as const;
 
-// New bar association specific options
+// Bar association specific options
 const PRACTICE_AREAS = [
   'Corporate Law',
   'Litigation',
@@ -51,24 +51,20 @@ const EXPERIENCE_LEVELS = [
   'Judicial Officer'
 ] as const;
 
-const NETWORKING_GOALS = [
-  'Meet colleagues in my practice area',
-  'Expand network in different practice areas',
-  'Find mentorship opportunities',
-  'Offer mentorship to others',
-  'Discuss potential referrals',
-  'Explore job opportunities',
-  'Social connection with peers'
+const NETWORKING_PREFERENCES = [
+  'All participants',
+  'Participants junior to me',
+  'Participants at similar levels of experience',
+  'Participants senior to me'
 ] as const;
 
 const surveySchema = z.object({
   name: z.string().min(2, "Name is required and must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
   // Bar-specific fields
-  barNumber: z.string().optional(),
   practiceAreas: z.array(z.string()).min(1, "Please select at least one practice area"),
   experienceLevel: z.enum(EXPERIENCE_LEVELS),
-  networkingGoals: z.array(z.enum(NETWORKING_GOALS)).min(1, "Please select at least one networking goal"),
+  networkingPreference: z.enum(NETWORKING_PREFERENCES),
   // Original fields
   availability: z.array(z.enum(AVAILABILITY_OPTIONS)).min(1, "Please select at least one availability option"),
   useSeparateLocations: z.boolean().default(false),
@@ -127,7 +123,7 @@ export default function SurveyForm() {
     resolver: zodResolver(surveySchema),
     defaultValues: {
       practiceAreas: [],
-      networkingGoals: [],
+      networkingPreference: 'All participants',
       availability: [],
       locations: [],
       useSeparateLocations: false,
@@ -221,7 +217,7 @@ export default function SurveyForm() {
         currentStepValid = Boolean(
           watch('practiceAreas')?.length > 0 && 
           watch('experienceLevel') && 
-          watch('networkingGoals')?.length > 0
+          watch('networkingPreference')
         );
         errorMessage = "Please complete all professional profile fields";
         break;
@@ -272,21 +268,10 @@ export default function SurveyForm() {
                 <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
               )}
             </div>
-
-            <div>
-              <label className="block mb-2 font-medium">
-                Bar Number <span className="text-gray-400">(optional)</span>
-              </label>
-              <input 
-                {...register('barNumber')}
-                className="w-full px-3 py-2 border rounded"
-                placeholder="Your state bar number"
-              />
-            </div>
           </div>
         );
 
-      case 1: // Professional Profile (New Step)
+      case 1: // Professional Profile
         return (
           <div className="space-y-6">
             <div>
@@ -331,29 +316,30 @@ export default function SurveyForm() {
 
             <div>
               <label className="block mb-2 font-medium">
-                Networking Goals <span className="text-red-500">*</span>
+                Networking Preferences <span className="text-red-500">*</span>
               </label>
+              <p className="text-sm text-gray-500 mb-2">I prefer to network with:</p>
               <div className="grid grid-cols-1 gap-2">
-                {NETWORKING_GOALS.map((goal) => (
-                  <label key={goal} className="flex items-center p-2 rounded hover:bg-gray-50">
+                {NETWORKING_PREFERENCES.map((preference) => (
+                  <label key={preference} className="flex items-center p-2 rounded hover:bg-gray-50">
                     <input
-                      type="checkbox"
-                      value={goal}
-                      {...register('networkingGoals')}
+                      type="radio"
+                      value={preference}
+                      {...register('networkingPreference')}
                       className="mr-3"
                     />
-                    <span>{goal}</span>
+                    <span>{preference}</span>
                   </label>
                 ))}
               </div>
-              {errors.networkingGoals && (
-                <p className="text-red-500 text-sm mt-1">{errors.networkingGoals.message}</p>
+              {errors.networkingPreference && (
+                <p className="text-red-500 text-sm mt-1">{errors.networkingPreference.message}</p>
               )}
             </div>
           </div>
         );
 
-      case 2: // Meeting Availability (Formerly step 1)
+      case 2: // Meeting Availability
         return (
           <div className="space-y-6">
             <div>
@@ -380,7 +366,7 @@ export default function SurveyForm() {
           </div>
         );
 
-      case 3: // Location Preferences (Formerly step 2)
+      case 3: // Location Preferences
         return (
           <div className="space-y-6">
             {selectedAvailability.length > 1 && (
@@ -485,7 +471,7 @@ export default function SurveyForm() {
 
       {/* Existing Submission Alert */}
       {existingSubmission && (
-        <Alert className="mb-6">
+        <Alert className="mb-6 bg-red-50 border border-red-200 text-red-700">
           <AlertDescription>
             We found an existing submission for this email address. Your previous responses have been loaded and you can modify them below.
           </AlertDescription>
